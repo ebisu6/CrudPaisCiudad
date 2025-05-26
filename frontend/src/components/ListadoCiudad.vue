@@ -5,7 +5,7 @@
     placeholder="Buscar por nombre ciudad ..."
     prefix-icon="Search"
     clearable
-    style="width: 300px; margin-bottom: 20px ; margin: 10px"
+    style="width: 300px; margin-bottom: 20px; margin: 10px"
   />
 
   <!-- Tabla -->
@@ -13,7 +13,7 @@
     <el-table-column prop="id_ciudad" label="ID" width="70" />
     <el-table-column prop="nombre" label="Nombre" />
     <el-table-column prop="poblacion" label="Población" />
-    <el-table-column prop="region" label="Region" />
+    <el-table-column prop="region" label="Región" />
     <el-table-column prop="id_pais" label="ID País" />
     <el-table-column label="Acciones" width="200">
       <template #default="scope">
@@ -35,25 +35,25 @@
     style="margin-top: 20px; text-align: right"
   />
 
-  <!-- Diálogo -->
+  <!-- Diálogo con validación -->
   <el-dialog v-model="dialogVisible" title="Editar Ciudad">
-    <el-form :model="form" label-width="120px">
-      <el-form-item label="Nombre">
+    <el-form :model="form" :rules="rules" ref="formRef" label-width="120px">
+      <el-form-item label="Nombre" prop="nombre">
         <el-input v-model="form.nombre" />
       </el-form-item>
-      <el-form-item label="Población">
+      <el-form-item label="Población" prop="poblacion">
         <el-input v-model="form.poblacion" />
       </el-form-item>
-      <el-form-item label="Region">
+      <el-form-item label="Región" prop="region">
         <el-input v-model="form.region" />
       </el-form-item>
-      <el-form-item label="ID País">
+      <el-form-item label="ID País" prop="id_pais">
         <el-input v-model="form.id_pais" />
       </el-form-item>
     </el-form>
     <template #footer>
       <el-button @click="dialogVisible = false">Cancelar</el-button>
-      <el-button type="primary" @click="actualizar">Actualizar</el-button>
+      <el-button type="primary" @click="validarYActualizar">Actualizar</el-button>
     </template>
   </el-dialog>
 </template>
@@ -71,14 +71,60 @@ const pageSize = 5;
 
 const dialogVisible = ref(false);
 const toast = useToast();
+const formRef = ref(null);
 
 const form = reactive({
   id_ciudad: null,
   nombre: '',
   poblacion: '',
-  region:'',
+  region: '',
   id_pais: ''
 });
+
+// Validaciones
+const soloTexto = /^[A-Za-zÁÉÍÓÚáéíóúÑñ\s]{3,100}$/;
+const soloTextot = /^[A-Za-zÁÉÍÓÚáéíóúÑñ\s]{4,100}$/;
+const soloNumero = /^[0-9]+$/;
+
+const rules = {
+  nombre: [
+    { required: true, message: 'El nombre es obligatorio', trigger: 'blur' },
+    { pattern: soloTexto, message: 'Solo letras y espacios (3–100 caracteres)', trigger: 'blur' }
+  ],
+  poblacion: [
+    { required: true, message: 'La población es obligatoria', trigger: 'blur' },
+    { pattern: soloNumero, message: 'Debe ser un número entero positivo', trigger: 'blur' }
+  ],
+  region: [
+    { required: true, message: 'La región es obligatoria', trigger: 'blur' },
+    { pattern: soloTextot, message: 'Solo letras y espacios (4–100 caracteres)', trigger: 'blur' }
+  ],
+  id_pais: [
+    { required: true, message: 'El ID del país es obligatorio', trigger: 'blur' },
+    { pattern: soloNumero, message: 'Debe ser un número entero positivo', trigger: 'blur' }
+  ]
+};
+
+const validarYActualizar = () => {
+  formRef.value.validate(async (valid) => {
+    if (!valid) {
+      toast.warning("Corrige los errores del formulario", { position: "top-center" });
+      return;
+    }
+
+    try {
+      form.poblacion = Number(form.poblacion);
+      form.id_pais = Number(form.id_pais);
+      await actualizarCiudad(form);
+      dialogVisible.value = false;
+      toast.success("Ciudad actualizada correctamente");
+      cargarCiudades();
+    } catch (error) {
+      console.error(error);
+      toast.error("Error al actualizar ciudad");
+    }
+  });
+};
 
 const cargarCiudades = async () => {
   ciudades.value = await getCiudades();
@@ -95,16 +141,6 @@ const ciudadesFiltradasPaginadas = computed(() =>
 const mostrarFormulario = (ciudad) => {
   Object.assign(form, ciudad);
   dialogVisible.value = true;
-};
-
-const actualizar = async () => {
-  form.poblacion = Number(form.poblacion);
-  form.region = Number(form.region);
-  form.id_pais = Number(form.id_pais);
-  await actualizarCiudad(form);
-  dialogVisible.value = false;
-  toast.success("Ciudad actualizada correctamente");
-  cargarCiudades();
 };
 
 const confirmarEliminarCiudad = async (id_ciudad) => {

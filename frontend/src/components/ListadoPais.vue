@@ -2,10 +2,10 @@
   <!-- Buscador -->
   <el-input
     v-model="busqueda"
-    placeholder="Buscar por nombre pais ..."
+    placeholder="Buscar por nombre país ..."
     prefix-icon="Search"
     clearable
-    style="width: 300px; margin-bottom: 40px; margin: 10px"
+    style="width: 300px; margin-bottom: 20px; margin: 10px"
   />
 
   <!-- Tabla -->
@@ -34,29 +34,29 @@
     style="margin-top: 20px; text-align: right"
   />
 
-  <!-- Diálogo -->
+  <!-- Diálogo con validación -->
   <el-dialog v-model="dialogVisible" title="Editar País">
-    <el-form :model="form" label-width="120px">
-      <el-form-item label="Nombre">
+    <el-form :model="form" :rules="rules" ref="formRef" label-width="120px">
+      <el-form-item label="Nombre" prop="nombre">
         <el-input v-model="form.nombre" />
       </el-form-item>
-      <el-form-item label="Capital">
+      <el-form-item label="Capital" prop="capital">
         <el-input v-model="form.capital" />
       </el-form-item>
-      <el-form-item label="Continente">
+      <el-form-item label="Continente" prop="continente">
         <el-input v-model="form.continente" />
       </el-form-item>
     </el-form>
     <template #footer>
       <el-button @click="dialogVisible = false">Cancelar</el-button>
-      <el-button type="primary" @click="actualizar">Actualizar</el-button>
+      <el-button type="primary" @click="validarYActualizar">Actualizar</el-button>
     </template>
   </el-dialog>
 </template>
 
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue';
-import { getPaises, actualizarPais, eliminarPais} from '../api/apisPais.js';
+import { getPaises, actualizarPais, eliminarPais } from '../api/apisPais.js';
 import { useToast } from 'vue-toastification';
 import { ElMessage, ElMessageBox } from 'element-plus';
 
@@ -67,7 +67,7 @@ const pageSize = 5;
 
 const dialogVisible = ref(false);
 const toast = useToast();
-const labelWidth = '120px';
+const formRef = ref(null);
 
 const form = reactive({
   id_pais: null,
@@ -75,6 +75,45 @@ const form = reactive({
   capital: '',
   continente: ''
 });
+
+// Expresiones regulares
+const soloTexto = /^[A-Za-zÁÉÍÓÚáéíóúÑñ\s]{2,100}$/;
+
+// Validaciones
+const rules = {
+  nombre: [
+    { required: true, message: 'El nombre es obligatorio', trigger: 'blur' },
+    { pattern: soloTexto, message: 'Solo letras y espacios (2–100 caracteres)', trigger: 'blur' }
+  ],
+  capital: [
+    { required: true, message: 'La capital es obligatoria', trigger: 'blur' },
+    { pattern: soloTexto, message: 'Solo letras y espacios (2–100 caracteres)', trigger: 'blur' }
+  ],
+  continente: [
+    { required: true, message: 'El continente es obligatorio', trigger: 'blur' },
+    { pattern: soloTexto, message: 'Solo letras y espacios (2–100 caracteres)', trigger: 'blur' }
+  ]
+};
+
+// Función para validar antes de actualizar
+const validarYActualizar = () => {
+  formRef.value.validate(async (valid) => {
+    if (!valid) {
+      toast.warning("Corrige los errores del formulario", { position: "top-center" });
+      return;
+    }
+
+    try {
+      await actualizarPais(form);
+      dialogVisible.value = false;
+      toast.success("País actualizado correctamente");
+      cargarPaises();
+    } catch (error) {
+      console.error(error);
+      toast.error("Error al actualizar país");
+    }
+  });
+};
 
 const cargarPaises = async () => {
   paises.value = await getPaises();
@@ -91,13 +130,6 @@ const paisesFiltradosPaginados = computed(() =>
 const mostrarFormulario = (pais) => {
   Object.assign(form, pais);
   dialogVisible.value = true;
-};
-
-const actualizar = async () => {
-  await actualizarPais(form);
-  dialogVisible.value = false;
-  toast.success("País actualizado correctamente");
-  cargarPaises();
 };
 
 const confirmarEliminarPais = async (id_pais) => {
